@@ -1,41 +1,72 @@
 import SwiftUI
 
 struct SplashView: View {
-    @State private var isActive = false
+    @State private var showContent = false
+    @State private var animateSplit = false
+
     private let appName: String = "splitsies"
 
     var body: some View {
-        if isActive {
+        ZStack {
+            // Destination (Home)
             ContentView()
-        } else {
-            ZStack {
-                // Background image with brightness and blur adjustment
-                Image("receipt_background")
-                    .resizable()
-                    .scaledToFill()
-                    .brightness(0.25) // make it brighter (positive = brighter, negative = darker)
-                    .overlay(Color.white.opacity(0.1)) // subtle bright overlay
-                    .ignoresSafeArea()
+                .opacity(showContent ? 1 : 0)
 
-                // Centered logo text
-                VStack {
-                    Spacer()
-                    Text(appName)
-                        .font(.custom("OCR-A", size: 70))
-                        .fontWeight(.bold)
-                        .kerning(0.5)
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.center)
-                    Spacer()
+            // Splash overlay: stays until split animation finishes
+            if !showContent || animateSplit {
+                GeometryReader { geo in
+                    let size = geo.size
+
+                    ZStack {
+                        // TOP HALF
+                        Image("back")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: size.width, height: size.height)
+                            .ignoresSafeArea()
+                            .mask(
+                                VStack(spacing: 0) {
+                                    Rectangle()
+                                        .frame(height: size.height / 2)
+                                    Spacer()
+                                }
+                            )
+                            .offset(y: animateSplit ? -size.height : 0)
+
+                        // BOTTOM HALF
+                        Image("back")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: size.width, height: size.height)
+                            .ignoresSafeArea()
+                            .mask(
+                                VStack(spacing: 0) {
+                                    Spacer()
+                                    Rectangle()
+                                        .frame(height: size.height / 2)
+                                }
+                            )
+                            .offset(y: animateSplit ? size.height : 0)
+                    }
+                    .ignoresSafeArea()
                 }
+                .transition(.identity) // avoid default fade
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .task {
-                try? await Task.sleep(nanoseconds: 1_500_000_000)
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isActive = true
-                }
+        }
+        .ignoresSafeArea()
+        .task {
+            // 1) Wait with full splash
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+
+            // 2) Start split + fade in ContentView
+            withAnimation(.easeInOut(duration: 0.75)) {
+                animateSplit = true
+                showContent = true
             }
+
+            // 3) After split ends, remove splash halves
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            animateSplit = false
         }
     }
 }

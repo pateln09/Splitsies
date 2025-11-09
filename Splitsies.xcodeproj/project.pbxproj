@@ -271,6 +271,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Splitsies/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Splitsies needs access to your camera to scan receipts.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "This app imports your contacts to add friends";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -305,6 +306,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Splitsies/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Splitsies needs access to your camera to scan receipts.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "This app imports your contacts to add friends";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
