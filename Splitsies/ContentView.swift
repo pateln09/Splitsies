@@ -17,20 +17,20 @@ struct ContentView: View {
     }
 }
 
-struct FriendsView: View {
-    var body: some View {
-        NavigationStack {
-            Text("Friends coming soon")
-                .navigationTitle("Friends")
-        }
-    }
-}
+//struct FriendsView: View {
+//    var body: some View {
+//        NavigationStack {
+//            Text("Friends coming soon")
+//                .navigationTitle("Friends")
+//        }
+//    }
+//}
 
-struct AccountView: View {
-    var body: some View {
-        NavigationStack {
-            Text("Account coming soon")
-                .navigationTitle("Account")
-        }
-    }
-}
+//struct AccountView: View {
+//    var body: some View {
+//        NavigationStack {
+//            Text("Account coming soon")
+//                .navigationTitle("Account")
+//        }
+//    }
+//}

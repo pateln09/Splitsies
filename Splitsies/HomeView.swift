@@ -1,6 +1,24 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UIKit
+
+// MARK: - Demo Friends
+
+struct Friend: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let handle: String
+}
+
+let demoFriends: [Friend] = [
+    Friend(name: "Aria", handle: "@aria"),
+    Friend(name: "Eli", handle: "@eli"),
+    Friend(name: "Sofia", handle: "@sofia"),
+    Friend(name: "Noah", handle: "@noah")
+]
+
+// MARK: - Home View
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +30,9 @@ struct HomeView: View {
     @State private var capturedImage: UIImage?
     @State private var isParsing = false
     @State private var parseError: String?
+
+    // For Home "Send Money Request" button demo
+    @State private var showHomeRequestAlert = false
 
     var body: some View {
         NavigationStack {
@@ -84,6 +105,8 @@ struct HomeView: View {
                     }
                     .listStyle(.plain)
                 }
+
+
             }
             .navigationTitle("Home")
         }
@@ -103,6 +126,11 @@ struct HomeView: View {
                     await handleNewReceiptImage(image)
                 }
             }
+        }
+        .alert("Send requests from receipt details", isPresented: $showHomeRequestAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Open a receipt to choose who owes what, then tap Send Money Request there.")
         }
     }
 
@@ -217,60 +245,140 @@ struct ReceiptRowView: View {
     }
 }
 
-
-// MARK: - Detail View
+// MARK: - Detail View with Splitting + Inline Editing
 
 struct ReceiptDetailView: View {
+    @Environment(\.modelContext) private var modelContext
     let receipt: Receipt
 
     @State private var showImage = false
+    @State private var isEditing = false
+
+    // item.id -> set of friends sharing that item
+    // Empty or missing entry = split between all demoFriends evenly
+    @State private var itemSplits: [AnyHashable: Set<Friend>] = [:]
+
+    @State private var showRequestAlert = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
 
-                Text(receipt.storeName ?? "Receipt")
-                    .font(.title2.weight(.semibold))
+                // Top row: store name + View image button inline (if available)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(receipt.storeName ?? "Receipt")
+                        .font(.title2.weight(.semibold))
 
-                // Always show something for purchase date
+                    Spacer()
+
+                    if receipt.imageRef != nil {
+                        Button {
+                            showImage = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("View receipt")
+                                Image(systemName: "doc.text.magnifyingglass")
+                                    .font(.caption)
+                            }
+                            .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                }
+
+                // Purchase date
                 Text(purchaseDateDetailText)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding(.bottom, 4)
 
-                if receipt.imageRef != nil {
-                    Button {
-                        showImage = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("View image")
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                        }
-                        .font(.subheadline.weight(.semibold))
-                    }
-                    .padding(.top, 2)
-                }
-
+                // Items header
                 Text("Items")
                     .font(.headline)
                     .padding(.top, 8)
 
+                // Inline editable items with split controls
                 ForEach(receipt.items) { item in
-                    HStack {
-                        Text(item.name ?? "Unknown item")
-                        Spacer()
-                        if let price = item.price {
-                            Text(String(format: "$%.2f", price))
-                        } else {
-                            Text("--")
-                                .foregroundColor(.secondary)
+                    let key = AnyHashable(item.id)
+                    let assignedFriends = itemSplits[key] ?? []
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if isEditing {
+                                // Editable item name
+                                TextField(
+                                    "Item",
+                                    text: Binding(
+                                        get: { item.name ?? "" },
+                                        set: { item.name = $0 }
+                                    )
+                                )
+
+                                Spacer()
+
+                                // Editable price
+                                TextField(
+                                    "Price",
+                                    text: Binding(
+                                        get: {
+                                            if let price = item.price {
+                                                return String(format: "%.2f", price)
+                                            } else {
+                                                return ""
+                                            }
+                                        },
+                                        set: { newValue in
+                                            let filtered = newValue.filter { "0123456789.".contains($0) }
+                                            item.price = Double(filtered)
+                                        }
+                                    )
+                                )
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 80)
+                            } else {
+                                // Read-only state
+                                Text(item.name ?? "Unknown item")
+
+                                Spacer()
+
+                                if let price = item.price {
+                                    Text(String(format: "$%.2f", price))
+                                        .font(.subheadline)
+                                } else {
+                                    Text("--")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+
+                        // Split dropdown
+                        Menu {
+                            Button("Split evenly between all") {
+                                itemSplits[key] = []
+                            }
+
+                            ForEach(demoFriends) { friend in
+                                let isSelected = assignedFriends.contains(friend)
+                                Button {
+                                    toggleFriend(friend, for: key)
+                                } label: {
+                                    Label(friend.name,
+                                          systemImage: isSelected ? "checkmark.circle.fill" : "circle")
+                                }
+                            }
+                        } label: {
+                            Text(splitLabel(for: assignedFriends))
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
                         }
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 4)
                 }
 
-                // Totals at the bottom
+                // Totals
                 VStack(alignment: .leading, spacing: 4) {
                     Divider().padding(.top, 8)
 
@@ -297,15 +405,74 @@ struct ReceiptDetailView: View {
                     }
                 }
                 .padding(.top, 8)
+
+                // Split summary
+                let owed = computeOwedTotals()
+                if !owed.isEmpty {
+                    Text("Split Summary")
+                        .font(.headline)
+                        .padding(.top, 12)
+
+                    ForEach(demoFriends) { friend in
+                        let amount = owed[friend] ?? 0
+                        HStack {
+                            Text(friend.name)
+                            Spacer()
+                            Text(String(format: "$%.2f", amount))
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+
+                // Big Send Money Request button
+                Button {
+                    showRequestAlert = true
+                } label: {
+                    Text("Send Money Request")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(red: 230/255, green: 0/255, blue: 0/255))
+                        .foregroundColor(.white)
+                        .cornerRadius(16)
+                }
+                .padding(.top, 16)
             }
             .padding()
         }
         .navigationTitle("Receipt Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(isEditing ? "Done" : "Edit") {
+                    isEditing.toggle()
+                    if !isEditing {
+                        try? modelContext.save()
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showImage) {
             ImageViewerSheet(imageRef: receipt.imageRef, isPresented: $showImage)
         }
+        .alert("Requests ready to send", isPresented: $showRequestAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            let owed = computeOwedTotals()
+            if owed.isEmpty {
+                Text("Set item splits first to calculate who owes what.")
+            } else {
+                let lines = owed
+                    .sorted { $0.key.name < $1.key.name }
+                    .map { "\($0.key.name): $\(String(format: "%.2f", $0.value))" }
+                    .joined(separator: "\n")
+                Text("You can now send requests:\n\(lines)")
+            }
+        }
     }
+
+    // MARK: - Helpers
 
     private var purchaseDateDetailText: String {
         if let date = receipt.receiptDate {
@@ -327,6 +494,63 @@ struct ReceiptDetailView: View {
                     .foregroundColor(.secondary)
             }
         }
+    }
+
+    private func splitLabel(for assigned: Set<Friend>) -> String {
+        if assigned.isEmpty {
+            return "Split: Everyone"
+        } else if assigned.count == 1, let f = assigned.first {
+            return "Split: \(f.name)"
+        } else {
+            let first = assigned.first!.name
+            return "Split: \(first) +\(assigned.count - 1)"
+        }
+    }
+
+    private func toggleFriend(_ friend: Friend, for key: AnyHashable) {
+        var set = itemSplits[key] ?? []
+        if set.contains(friend) {
+            set.remove(friend)
+        } else {
+            set.insert(friend)
+        }
+        itemSplits[key] = set
+    }
+
+    /// Compute how much each friend owes based on item-level splits.
+    /// Rule:
+    /// - If an item has an explicit non-empty friend set: split that item's price evenly among them.
+    /// - Otherwise: split that item's price evenly among all demoFriends.
+    /// Uses only item prices for now (clean + simple for hackathon).
+    private func computeOwedTotals() -> [Friend: Double] {
+        var owed: [Friend: Double] = [:]
+
+        for item in receipt.items {
+            guard let price = item.price, price > 0 else { continue }
+            let key = AnyHashable(item.id)
+            let assigned = itemSplits[key] ?? []
+
+            let targets: [Friend]
+            if assigned.isEmpty {
+                targets = demoFriends
+            } else {
+                targets = Array(assigned)
+            }
+
+            guard !targets.isEmpty else { continue }
+            let share = price / Double(targets.count)
+
+            for friend in targets {
+                owed[friend, default: 0] += share
+            }
+        }
+
+        // Round to cents
+        for (friend, amount) in owed {
+            owed[friend] = (amount * 100).rounded() / 100
+        }
+
+        return owed
     }
 }
 
