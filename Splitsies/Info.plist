@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>ocr.ttf</string>
+	</array>
+	<key>Privacy - Contacts Usage Description
+Privacy - Contacts Usage Description</key>
+	<string>Splitsies needs access to your contacts to quickly find friends.</string>
+</dict>
+</plist>
